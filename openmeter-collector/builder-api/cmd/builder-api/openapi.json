@@ -26,13 +26,19 @@
       "post": {
         "summary": "Create or upsert an end-user",
         "description": "Creates an Auth0 Database user, upserts the OpenMeter customer, and optionally issues an end-user API key.",
-        "security": [{ "m2mBasic": [] }],
+        "security": [
+          {
+            "m2mBasic": []
+          }
+        ],
         "parameters": [
           {
             "name": "clientId",
             "in": "path",
             "required": true,
-            "schema": { "type": "string" },
+            "schema": {
+              "type": "string"
+            },
             "description": "Public Auth0 client id for the integrator app"
           }
         ],
@@ -40,7 +46,9 @@
           "required": true,
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/CreateUserRequest" }
+              "schema": {
+                "$ref": "#/components/schemas/CreateUserRequest"
+              }
             }
           }
         },
@@ -49,7 +57,9 @@
             "description": "User created",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/CreateUserResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/CreateUserResponse"
+                }
               }
             }
           },
@@ -57,12 +67,18 @@
             "description": "User updated",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/CreateUserResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/CreateUserResponse"
+                }
               }
             }
           },
-          "400": { "description": "Bad request" },
-          "401": { "description": "Unauthorized" }
+          "400": {
+            "description": "Bad request"
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
         }
       }
     },
@@ -75,7 +91,9 @@
             "name": "clientId",
             "in": "path",
             "required": true,
-            "schema": { "type": "string" },
+            "schema": {
+              "type": "string"
+            },
             "description": "Public Auth0 client id for the integrator app"
           }
         ],
@@ -83,7 +101,9 @@
           "required": true,
           "content": {
             "application/x-www-form-urlencoded": {
-              "schema": { "$ref": "#/components/schemas/TokenExchangeRequest" }
+              "schema": {
+                "$ref": "#/components/schemas/TokenExchangeRequest"
+              }
             }
           }
         },
@@ -92,12 +112,234 @@
             "description": "Signer session",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/SignerSession" }
+                "schema": {
+                  "$ref": "#/components/schemas/SignerSession"
+                }
               }
             }
           },
-          "400": { "description": "Invalid request, grant, target, or unsupported token type" },
-          "401": { "description": "Invalid client credentials" }
+          "400": {
+            "description": "Invalid request, grant, target, or unsupported token type"
+          },
+          "401": {
+            "description": "Invalid client credentials"
+          }
+        }
+      }
+    },
+    "/api/v1/apps/{clientId}/usage": {
+      "get": {
+        "summary": "Query metered usage for an app",
+        "description": "Subjects are derived from the authorized clientId, never from caller input. Without externalUserId every customer of the app is included.",
+        "security": [
+          {
+            "tenantBasic": []
+          },
+          {
+            "m2mBasic": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "clientId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "meter",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "externalUserId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "groupBy",
+            "in": "query",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Usage rows scoped to the app"
+          },
+          "400": {
+            "description": "Invalid meter, time window, or externalUserId"
+          },
+          "401": {
+            "description": "Missing or invalid credentials"
+          },
+          "404": {
+            "description": "Unknown app, or the caller does not own it"
+          },
+          "502": {
+            "description": "Metering backend unavailable"
+          },
+          "503": {
+            "description": "Metering backend not configured"
+          }
+        }
+      }
+    },
+    "/api/v1/apps/{clientId}/users/{externalUserId}/access": {
+      "get": {
+        "summary": "Read a user's allowance / entitlement balance",
+        "security": [
+          {
+            "tenantBasic": []
+          },
+          {
+            "m2mBasic": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "clientId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "externalUserId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Must not contain ':' \u2014 customer keys are 'clientId:externalUserId'."
+          },
+          {
+            "name": "feature",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Access snapshot"
+          },
+          "400": {
+            "description": "Invalid externalUserId"
+          },
+          "401": {
+            "description": "Missing or invalid credentials"
+          },
+          "404": {
+            "description": "Unknown app, or the caller does not own it"
+          },
+          "502": {
+            "description": "Metering backend unavailable"
+          }
+        }
+      }
+    },
+    "/api/v1/apps/{clientId}/users/{externalUserId}/grants": {
+      "post": {
+        "summary": "Grant a user allowance",
+        "security": [
+          {
+            "tenantBasic": []
+          },
+          {
+            "m2mBasic": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "clientId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "externalUserId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Must not contain ':' \u2014 customer keys are 'clientId:externalUserId'."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "amountUsdMicros"
+                ],
+                "properties": {
+                  "amountUsdMicros": {
+                    "type": "integer",
+                    "format": "int64",
+                    "minimum": 1
+                  },
+                  "featureKey": {
+                    "type": "string"
+                  },
+                  "grantKey": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Grant applied"
+          },
+          "400": {
+            "description": "Invalid request"
+          },
+          "401": {
+            "description": "Missing or invalid credentials"
+          },
+          "404": {
+            "description": "Unknown app, or the caller does not own it"
+          },
+          "502": {
+            "description": "Grant failed"
+          }
         }
       }
     }
@@ -108,28 +350,58 @@
         "type": "http",
         "scheme": "basic",
         "description": "M2M client id and secret (users:write, RFC 8693 token exchange)"
+      },
+      "tenantBasic": {
+        "type": "http",
+        "scheme": "basic",
+        "description": "Tenant admin credentials: username is the tenant clientId, password is its secret from TENANT_ADMIN_KEYS. A tenant may only address its own clientId; the platform M2M credential (m2mBasic) may address any. A request for another tenant answers 404, not 403, so that a shared OpenMeter tenant does not confirm which client ids exist."
       }
     },
     "schemas": {
       "CreateUserRequest": {
         "type": "object",
-        "required": ["externalUserId"],
+        "required": [
+          "externalUserId"
+        ],
         "properties": {
-          "externalUserId": { "type": "string" },
-          "email": { "type": "string", "format": "email" },
-          "connection": { "type": "string" },
-          "issueApiKey": { "type": "boolean", "default": true }
+          "externalUserId": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "connection": {
+            "type": "string"
+          },
+          "issueApiKey": {
+            "type": "boolean",
+            "default": true
+          }
         }
       },
       "CreateUserResponse": {
         "type": "object",
         "properties": {
-          "id": { "type": "string" },
-          "clientId": { "type": "string" },
-          "externalUserId": { "type": "string" },
-          "email": { "type": "string" },
-          "status": { "type": "string" },
-          "apiKey": { "type": "string", "description": "Returned once when issueApiKey is true" }
+          "id": {
+            "type": "string"
+          },
+          "clientId": {
+            "type": "string"
+          },
+          "externalUserId": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "apiKey": {
+            "type": "string",
+            "description": "Returned once when issueApiKey is true"
+          }
         }
       },
       "TokenExchangeRequest": {
@@ -142,7 +414,9 @@
         "properties": {
           "grant_type": {
             "type": "string",
-            "enum": ["urn:ietf:params:oauth:grant-type:token-exchange"]
+            "enum": [
+              "urn:ietf:params:oauth:grant-type:token-exchange"
+            ]
           },
           "subject_token": {
             "type": "string",
@@ -150,11 +424,15 @@
           },
           "subject_token_type": {
             "type": "string",
-            "enum": ["urn:ietf:params:oauth:token-type:access_token"]
+            "enum": [
+              "urn:ietf:params:oauth:token-type:access_token"
+            ]
           },
           "requested_token_type": {
             "type": "string",
-            "enum": ["urn:ietf:params:oauth:token-type:access_token"]
+            "enum": [
+              "urn:ietf:params:oauth:token-type:access_token"
+            ]
           },
           "audience": {
             "type": "string",
@@ -175,14 +453,35 @@
           "scope"
         ],
         "properties": {
-          "access_token": { "type": "string" },
-          "token_type": { "type": "string", "enum": ["Bearer"] },
-          "expires_in": { "type": "integer" },
-          "scope": { "type": "string" },
-          "signer_url": { "type": "string", "format": "uri" },
-          "discovery_url": { "type": "string", "format": "uri" },
-          "issued_token_type": { "type": "string" },
-          "correlation_id": { "type": "string" }
+          "access_token": {
+            "type": "string"
+          },
+          "token_type": {
+            "type": "string",
+            "enum": [
+              "Bearer"
+            ]
+          },
+          "expires_in": {
+            "type": "integer"
+          },
+          "scope": {
+            "type": "string"
+          },
+          "signer_url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "discovery_url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "issued_token_type": {
+            "type": "string"
+          },
+          "correlation_id": {
+            "type": "string"
+          }
         }
       }
     }
