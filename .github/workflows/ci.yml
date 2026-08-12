@@ -5,6 +5,8 @@ on:
     paths:
       - "identity-webhook/**"
       - "openmeter-collector/**"
+      - "auth0-provisioner/**"
+      - "konnect-credentials/**"
       - ".github/workflows/ci.yml"
       - ".github/workflows/release.yml"
       - ".github/workflows/bump-version.yml"
@@ -13,6 +15,8 @@ on:
     paths:
       - "identity-webhook/**"
       - "openmeter-collector/**"
+      - "auth0-provisioner/**"
+      - "konnect-credentials/**"
       - ".github/workflows/ci.yml"
       - ".github/workflows/release.yml"
       - ".github/workflows/bump-version.yml"
@@ -59,3 +63,80 @@ jobs:
             -w /work \
             ghcr.io/openmeterio/benthos-collector:main-6b60ab6-1782310960 \
             test --verbose ./collector.yaml ./collector_benthos_test.yaml
+
+  # Guarded jobs: these services are landing across separate PRs. The presence
+  # check runs after checkout because a job-level `if:` is evaluated before the
+  # workspace exists, so `hashFiles()` there is always empty and would skip
+  # unconditionally. Steps skip cleanly until the directory lands; the job still
+  # reports green so the check name is stable from the first PR onward.
+  builder-api:
+    name: builder-api
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - id: detect
+        run: |
+          if [ -f openmeter-collector/builder-api/go.mod ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::openmeter-collector/builder-api not present yet - skipping"
+          fi
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        if: steps.detect.outputs.present == 'true'
+        with:
+          go-version-file: openmeter-collector/builder-api/go.mod
+          cache-dependency-path: openmeter-collector/builder-api/go.sum
+      - name: Format
+        if: steps.detect.outputs.present == 'true'
+        working-directory: openmeter-collector/builder-api
+        run: |
+          unformatted="$(gofmt -l .)"
+          if [ -n "$unformatted" ]; then
+            echo "::error::gofmt needed on:"; echo "$unformatted"
+            exit 1
+          fi
+      - name: Vet
+        if: steps.detect.outputs.present == 'true'
+        working-directory: openmeter-collector/builder-api
+        run: go vet ./...
+      - name: Build
+        if: steps.detect.outputs.present == 'true'
+        working-directory: openmeter-collector/builder-api
+        run: go build ./...
+      - name: Test
+        if: steps.detect.outputs.present == 'true'
+        working-directory: openmeter-collector/builder-api
+        run: go test ./... -count=1
+
+  konnect-credentials:
+    name: konnect-credentials
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node: [22, 24]
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - id: detect
+        run: |
+          if [ -f konnect-credentials/package.json ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::konnect-credentials not present yet - skipping"
+          fi
+      # No npm cache: the service has no runtime dependencies, so the cache
+      # would buy nothing and `cache-dependency-path` would hard-fail on a
+      # missing lockfile before the `npm ci` below can report it.
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        if: steps.detect.outputs.present == 'true'
+        with:
+          node-version: ${{ matrix.node }}
+      - name: Install
+        if: steps.detect.outputs.present == 'true'
+        working-directory: konnect-credentials
+        run: npm ci
+      - name: Test
+        if: steps.detect.outputs.present == 'true'
+        working-directory: konnect-credentials
+        run: npm test
