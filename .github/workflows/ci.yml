@@ -7,6 +7,8 @@ on:
       - "openmeter-collector/**"
       - "auth0-provisioner/**"
       - "konnect-credentials/**"
+      - "bootstrap.sh"
+      - "testdata/**"
       - ".github/workflows/ci.yml"
       - ".github/workflows/release.yml"
       - ".github/workflows/bump-version.yml"
@@ -17,6 +19,8 @@ on:
       - "openmeter-collector/**"
       - "auth0-provisioner/**"
       - "konnect-credentials/**"
+      - "bootstrap.sh"
+      - "testdata/**"
       - ".github/workflows/ci.yml"
       - ".github/workflows/release.yml"
       - ".github/workflows/bump-version.yml"
@@ -140,3 +144,32 @@ jobs:
         if: steps.detect.outputs.present == 'true'
         working-directory: konnect-credentials
         run: npm test
+
+  bootstrap:
+    name: bootstrap
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - name: Shellcheck provisioners and orchestrator
+        run: |
+          shopt -s nullglob
+          scripts=(
+            bootstrap.sh
+            testdata/*.sh
+            auth0-provisioner/provision/*.sh
+            openmeter-collector/provision/*.sh
+            openmeter-collector/entrypoint.sh
+          )
+          if [ ${#scripts[@]} -eq 0 ]; then
+            echo "::notice::no shell scripts found - skipping"
+            exit 0
+          fi
+          printf 'checking: %s\n' "${scripts[@]}"
+          docker run --rm -v "$PWD:/mnt" -w /mnt koalaman/shellcheck:stable "${scripts[@]}"
+      - name: sdk-config.json emitter regression test
+        run: |
+          if [ ! -x testdata/bootstrap_test.sh ]; then
+            echo "::notice::bootstrap_test.sh not present yet - skipping"
+            exit 0
+          fi
+          ./testdata/bootstrap_test.sh
